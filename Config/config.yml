@@ -1,0 +1,8 @@
+snowflake:
+  account: "QPVALYU-WOC83447"
+  user: "monopoly22"
+  password: "788007@Silchar"
+  warehouse: "COMPUTE_WH"
+  database: "DQ_POC_DB"
+  schema: "DATA_QUALITY"
+  role: "ACCOUNTADMIN"
