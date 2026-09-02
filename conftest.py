@@ -2,7 +2,7 @@ import pytest
 
 from Src.Snowflake_Connection import get_connection
 from Src.excel_reader import read_rules
-
+from Src.result_manager import generate_html_report
 
 @pytest.fixture(scope="session")
 def snowflake_connection():
@@ -20,3 +20,11 @@ def dq_rules():
     return read_rules(
         "test_data/data_quality_requirements.xlsx"
     )
+
+
+def pytest_sessionfinish(
+    session,
+    exitstatus
+):
+
+    generate_html_report()
