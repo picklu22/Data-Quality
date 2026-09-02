@@ -1,7 +1,15 @@
+import pytest
+
 from Src.validator import check_duplicate
+from Src.result_manager import add_result
 
 
-def test_duplicate_check(snowflake_connection, dq_rules):
+def test_duplicate_check(
+    snowflake_connection,
+    dq_rules
+):
+
+    failures = []
 
     for rule in dq_rules:
 
@@ -14,13 +22,56 @@ def test_duplicate_check(snowflake_connection, dq_rules):
         table_name = rule["TABLE_NAME"]
         field_name = rule["FIELD_NAME"]
 
-        passed, duplicate_count = check_duplicate(
-            snowflake_connection,
-            table_name,
-            field_name
-        )
+        try:
 
-        assert passed, (
-            f"{table_name}.{field_name} "
-            f"contains {duplicate_count} duplicate values"
+            passed, duplicate_count = check_duplicate(
+                snowflake_connection,
+                table_name,
+                field_name
+            )
+
+            status = "PASS" if passed else "FAIL"
+
+            add_result(
+                table_name,
+                field_name,
+                "DUPLICATE CHECK",
+                "0 DUPLICATES",
+                f"{duplicate_count} DUPLICATES",
+                status,
+                (
+                    "No duplicates found"
+                    if passed
+                    else f"{duplicate_count} duplicate values found"
+                )
+            )
+
+            if not passed:
+
+                failures.append(
+                    f"{table_name}.{field_name} "
+                    f"has {duplicate_count} duplicates"
+                )
+
+        except Exception as e:
+
+            add_result(
+                table_name,
+                field_name,
+                "DUPLICATE CHECK",
+                "0 DUPLICATES",
+                "ERROR",
+                "FAIL",
+                str(e)
+            )
+
+            failures.append(
+                f"{table_name}.{field_name}: {str(e)}"
+            )
+
+    if failures:
+
+        pytest.fail(
+            "DUPLICATE CHECK FAILED:\n"
+            + "\n".join(failures)
         )
