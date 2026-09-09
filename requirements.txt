@@ -6,3 +6,4 @@ pandas
 numpy
 reportlab
 python-dotenv
+openpyxl

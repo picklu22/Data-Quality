@@ -53,9 +53,29 @@ def generate_html_report():
     else:
         pass_percentage = 0
 
+    max_bar_value = max(1, total)
+    pass_height = (passed / max_bar_value) * 100
+    fail_height = (failed / max_bar_value) * 100
+
     execution_time = datetime.now().strftime(
         "%d-%m-%Y %H:%M:%S"
     )
+
+    type_summary = {}
+
+    for result in RESULTS:
+
+        check_type = result["check_type"].upper()
+
+        if check_type not in type_summary:
+            type_summary[check_type] = {
+                "PASS": 0,
+                "FAIL": 0
+            }
+
+        type_summary[check_type][result["status"]] = (
+            type_summary[check_type].get(result["status"], 0) + 1
+        )
 
     rows = ""
 
@@ -90,6 +110,33 @@ def generate_html_report():
 
         </tr>
         """
+
+    type_chart_rows = ""
+
+    if type_summary:
+        for check_name in sorted(type_summary):
+            stats = type_summary[check_name]
+            total_for_type = sum(stats.values())
+            pass_count = stats.get("PASS", 0)
+            fail_count = stats.get("FAIL", 0)
+            pass_percentage = (
+                round((pass_count / total_for_type) * 100, 2)
+                if total_for_type else 0
+            )
+            fail_percentage = (
+                round((fail_count / total_for_type) * 100, 2)
+                if total_for_type else 0
+            )
+
+            type_chart_rows += f"""
+            <div class="type-row">
+                <div class="type-label">{check_name}</div>
+                <div class="type-bar">
+                    <span class="type-pass" style="width: {pass_percentage}%">{pass_count}</span>
+                    <span class="type-fail" style="width: {fail_percentage}%">{fail_count}</span>
+                </div>
+            </div>
+            """
 
     html = f"""
 <!DOCTYPE html>
@@ -227,6 +274,156 @@ body {{
     box-shadow:
         0 2px 8px
         rgba(0,0,0,0.08);
+
+}}
+
+.chart-panel {{
+
+    margin-bottom: 25px;
+
+}}
+
+.chart-wrap {{
+
+    display: flex;
+    align-items: end;
+    gap: 18px;
+    height: 180px;
+    padding: 20px 10px 10px;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #f8fafc, #eef2ff);
+    border: 1px solid #e5e7eb;
+
+}}
+
+.bar-group {{
+
+    display: flex;
+    align-items: end;
+    gap: 20px;
+    width: 100%;
+    height: 100%;
+
+}}
+
+.bar {{
+
+    flex: 1;
+    min-height: 8px;
+    border-radius: 10px 10px 0 0;
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    color: #111827;
+    font-size: 12px;
+    font-weight: bold;
+    padding-top: 8px;
+    box-shadow: inset 0 -2px 0 rgba(0,0,0,0.06);
+
+}}
+
+.pass-bar {{
+
+    background: linear-gradient(180deg, #4ade80, #16a34a);
+
+}}
+
+.fail-bar {{
+
+    background: linear-gradient(180deg, #fca5a5, #ef4444);
+
+}}
+
+.legend {{
+
+    display: flex;
+    gap: 20px;
+    margin-top: 12px;
+    color: #374151;
+    font-size: 13px;
+    flex-wrap: wrap;
+
+}}
+
+.legend-item {{
+
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+}}
+
+.legend-dot {{
+
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+
+}}
+
+.type-chart {{
+
+    margin-top: 15px;
+
+}}
+
+.type-row {{
+
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+
+}}
+
+.type-label {{
+
+    min-width: 150px;
+    font-size: 12px;
+    font-weight: bold;
+    color: #374151;
+    text-transform: uppercase;
+
+}}
+
+.type-bar {{
+
+    flex: 1;
+    display: flex;
+    height: 18px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid #d1d5db;
+    background: #e5e7eb;
+    min-width: 120px;
+
+}}
+
+.type-pass {{
+
+    background: linear-gradient(90deg, #4ade80, #16a34a);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 10px;
+    font-weight: bold;
+    min-width: 0;
+
+}}
+
+.type-fail {{
+
+    background: linear-gradient(90deg, #fca5a5, #ef4444);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 10px;
+    font-weight: bold;
+    min-width: 0;
 
 }}
 
@@ -405,6 +602,60 @@ tr:hover {{
 
 </div>
 
+
+</div>
+
+
+<div class="report-box chart-panel">
+
+<h2>
+    Quality Summary
+</h2>
+
+<div class="chart-wrap">
+
+    <div class="bar-group">
+
+        <div class="bar pass-bar" style="height: {pass_height}%">
+            {passed}
+        </div>
+
+        <div class="bar fail-bar" style="height: {fail_height}%">
+            {failed}
+        </div>
+
+    </div>
+
+</div>
+
+<div class="legend">
+
+    <div class="legend-item">
+        <span class="legend-dot" style="background: #16a34a;"></span>
+        Passed ({passed})
+    </div>
+
+    <div class="legend-item">
+        <span class="legend-dot" style="background: #ef4444;"></span>
+        Failed ({failed})
+    </div>
+
+</div>
+
+</div>
+
+
+<div class="report-box">
+
+<h2>
+    Test Wise Summary
+</h2>
+
+<div class="type-chart">
+
+{type_chart_rows}
+
+</div>
 
 </div>
 
