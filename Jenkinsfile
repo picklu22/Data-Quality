@@ -5,18 +5,15 @@ pipeline {
     stages {
 
         // =========================================================
-        // 1. CHECKOUT CODE FROM GITHUB
+        // 1. CHECKOUT
         // =========================================================
         stage('Checkout') {
             steps {
-
                 echo '======================================'
                 echo '       CHECKING OUT GITHUB CODE'
                 echo '======================================'
 
                 checkout scm
-
-                echo 'GitHub checkout completed.'
             }
         }
 
@@ -26,7 +23,6 @@ pipeline {
         // =========================================================
         stage('Environment Check') {
             steps {
-
                 sh '''
                     echo "======================================"
                     echo "        ENVIRONMENT CHECK"
@@ -55,9 +51,9 @@ pipeline {
                     echo ""
                     echo "Report Directory:"
                     if [ -d "Report" ]; then
-                        ls -la Report
+                        ls -lah Report
                     else
-                        echo "Report directory does not exist yet."
+                        echo "Report directory does not exist."
                     fi
                 '''
             }
@@ -69,24 +65,19 @@ pipeline {
         // =========================================================
         stage('Setup Virtual Environment') {
             steps {
-
                 sh '''
                     echo "======================================"
                     echo "     SETTING UP PYTHON VENV"
                     echo "======================================"
 
-                    # Jenkins should use a Linux-compatible venv.
-                    # If .venv/bin/python exists, reuse it.
-                    # Otherwise create a new .venv.
-
                     if [ -x ".venv/bin/python" ]; then
 
-                        echo "Existing .venv found."
+                        echo ".venv already exists."
                         echo "Using existing virtual environment."
 
                     else
 
-                        echo ".venv is missing or not Linux-compatible."
+                        echo ".venv not found."
                         echo "Creating new virtual environment..."
 
                         rm -rf .venv
@@ -96,11 +87,11 @@ pipeline {
                     fi
 
                     echo ""
-                    echo "Python:"
+                    echo "Python version:"
                     ./.venv/bin/python --version
 
                     echo ""
-                    echo "Pip:"
+                    echo "Pip version:"
                     ./.venv/bin/python -m pip --version
                 '''
             }
@@ -112,21 +103,15 @@ pipeline {
         // =========================================================
         stage('Install Requirements') {
             steps {
-
                 sh '''
                     echo "======================================"
                     echo "       INSTALLING REQUIREMENTS"
                     echo "======================================"
 
                     if [ ! -f "requirements.txt" ]; then
-
                         echo "ERROR: requirements.txt not found."
-
                         exit 1
-
                     fi
-
-                    echo "requirements.txt found."
 
                     ./.venv/bin/python -m pip install --upgrade pip
 
@@ -141,37 +126,20 @@ pipeline {
 
 
         // =========================================================
-        // 5. CLEAN OLD GENERATED REPORTS
+        // 5. CLEAN OLD JENKINS REPORT
         // =========================================================
-        stage('Clean Old Reports') {
+        stage('Clean Jenkins Reports') {
             steps {
-
                 sh '''
                     echo "======================================"
                     echo "       CLEANING OLD REPORTS"
                     echo "======================================"
 
-                    # Keep the Report directory and assets.
-                    # Remove only previously generated HTML reports.
-
-                    mkdir -p Report
-
-                    rm -f Report/data_quality_report.html
-                    rm -f Report/report.html
-
-                    # Create Jenkins-specific report directory
                     rm -rf jenkins-reports
+
                     mkdir -p jenkins-reports
 
-                    echo ""
-                    echo "Report directory after cleanup:"
-
-                    ls -la Report
-
-                    echo ""
-                    echo "Jenkins report directory:"
-
-                    ls -la jenkins-reports
+                    echo "Jenkins report directory created."
                 '''
             }
         }
@@ -182,7 +150,6 @@ pipeline {
         // =========================================================
         stage('Run PyTest Framework') {
             steps {
-
                 sh '''
                     echo "======================================"
                     echo "       RUNNING PYTEST FRAMEWORK"
@@ -203,7 +170,6 @@ pipeline {
         // =========================================================
         stage('Check JUnit Report') {
             steps {
-
                 sh '''
                     echo "======================================"
                     echo "        CHECKING JUNIT REPORT"
@@ -213,22 +179,11 @@ pipeline {
 
                         echo "JUnit report generated successfully."
 
-                        echo ""
-                        echo "File details:"
                         ls -lh jenkins-reports/test-results.xml
-
-                        echo ""
-                        echo "Report timestamp:"
-                        stat jenkins-reports/test-results.xml
-
-                        echo ""
-                        echo "First 20 lines:"
-                        head -20 jenkins-reports/test-results.xml
 
                     else
 
-                        echo "ERROR:"
-                        echo "JUnit report was NOT generated."
+                        echo "ERROR: JUnit report was not generated."
 
                         exit 1
 
@@ -243,7 +198,6 @@ pipeline {
         // =========================================================
         stage('Check HTML Report') {
             steps {
-
                 sh '''
                     echo "======================================"
                     echo "        CHECKING HTML REPORT"
@@ -257,14 +211,15 @@ pipeline {
 
                     if [ -f "Report/data_quality_report.html" ]; then
 
-                        echo "data_quality_report.html found."
+                        echo "SUCCESS:"
+                        echo "data_quality_report.html generated."
 
                         ls -lh Report/data_quality_report.html
 
                     else
 
                         echo "WARNING:"
-                        echo "data_quality_report.html was not generated."
+                        echo "data_quality_report.html was NOT generated."
 
                     fi
 
@@ -272,14 +227,15 @@ pipeline {
 
                     if [ -f "Report/report.html" ]; then
 
-                        echo "report.html found."
+                        echo "SUCCESS:"
+                        echo "report.html generated."
 
                         ls -lh Report/report.html
 
                     else
 
                         echo "WARNING:"
-                        echo "report.html was not generated."
+                        echo "report.html was NOT generated."
 
                     fi
                 '''
@@ -289,18 +245,20 @@ pipeline {
 
 
     // =============================================================
-    // POST BUILD ACTIONS
+    // POST BUILD
     // =============================================================
     post {
 
-        // ---------------------------------------------------------
-        // ALWAYS PUBLISH JUNIT RESULTS
-        // ---------------------------------------------------------
         always {
 
             echo '======================================'
-            echo '       PUBLISHING JUNIT RESULTS'
+            echo '       PUBLISHING TEST RESULTS'
             echo '======================================'
+
+
+            // -----------------------------------------------------
+            // JUNIT RESULTS
+            // -----------------------------------------------------
 
             junit(
                 allowEmptyResults: true,
@@ -309,74 +267,33 @@ pipeline {
 
 
             // -----------------------------------------------------
-            // PUBLISH data_quality_report.html
+            // ARCHIVE HTML REPORTS
             // -----------------------------------------------------
-            script {
 
-                if (fileExists('Report/data_quality_report.html')) {
-
-                    echo 'Publishing data_quality_report.html'
-
-                    publishHTML(
-                        target: [
-                            allowMissing: true,
-                            alwaysLinkToLastBuild: true,
-                            keepAll: true,
-                            reportDir: 'Report',
-                            reportFiles: 'data_quality_report.html',
-                            reportName: 'Data Quality Report',
-                            reportTitles: 'Data Quality Report'
-                        ]
-                    )
-
-                } else {
-
-                    echo 'data_quality_report.html not found.'
-                }
+            echo '======================================'
+            echo '       ARCHIVING HTML REPORTS'
+            echo '======================================'
 
 
-                // -------------------------------------------------
-                // PUBLISH report.html
-                // -------------------------------------------------
-
-                if (fileExists('Report/report.html')) {
-
-                    echo 'Publishing report.html'
-
-                    publishHTML(
-                        target: [
-                            allowMissing: true,
-                            alwaysLinkToLastBuild: true,
-                            keepAll: true,
-                            reportDir: 'Report',
-                            reportFiles: 'report.html',
-                            reportName: 'Test Report',
-                            reportTitles: 'Test Report'
-                        ]
-                    )
-
-                } else {
-
-                    echo 'report.html not found.'
-                }
-            }
+            archiveArtifacts(
+                artifacts: 'Report/*.html,Report/assets/**/*',
+                allowEmptyArchive: true,
+                fingerprint: true
+            )
 
 
             // -----------------------------------------------------
-            // ARCHIVE REPORTS
+            // ARCHIVE JUNIT XML
             // -----------------------------------------------------
 
             archiveArtifacts(
-                artifacts: 'Report/*.html,Report/assets/**/*,jenkins-reports/test-results.xml',
+                artifacts: 'jenkins-reports/test-results.xml',
                 allowEmptyArchive: true,
                 fingerprint: true
             )
         }
 
 
-        // ---------------------------------------------------------
-        // SUCCESS
-        // ---------------------------------------------------------
         success {
 
             echo '======================================'
@@ -387,9 +304,6 @@ pipeline {
         }
 
 
-        // ---------------------------------------------------------
-        // FAILURE
-        // ---------------------------------------------------------
         failure {
 
             echo '======================================'
@@ -397,8 +311,6 @@ pipeline {
             echo '======================================'
 
             echo 'Please check Jenkins Console Output.'
-
-            echo 'JUnit results and generated reports will still be published if available.'
         }
     }
 }
