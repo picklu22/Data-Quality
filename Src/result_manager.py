@@ -37,12 +37,12 @@ def generate_html_report():
 
     passed = sum(
         1 for result in RESULTS
-        if result["status"] == "PASS"
+        if str(result.get("status", "")).upper() == "PASS"
     )
 
     failed = sum(
         1 for result in RESULTS
-        if result["status"] == "FAIL"
+        if str(result.get("status", "")).upper() == "FAIL"
     )
 
     if total > 0:
@@ -66,6 +66,7 @@ def generate_html_report():
     for result in RESULTS:
 
         check_type = result["check_type"].upper()
+        status_key = str(result.get("status", "")).upper()
 
         if check_type not in type_summary:
             type_summary[check_type] = {
@@ -73,9 +74,10 @@ def generate_html_report():
                 "FAIL": 0
             }
 
-        type_summary[check_type][result["status"]] = (
-            type_summary[check_type].get(result["status"], 0) + 1
-        )
+        if status_key in {"PASS", "FAIL"}:
+            type_summary[check_type][status_key] = (
+                type_summary[check_type].get(status_key, 0) + 1
+            )
 
     rows = ""
 
@@ -83,7 +85,7 @@ def generate_html_report():
 
         status_class = (
             "pass"
-            if result["status"] == "PASS"
+            if str(result.get("status", "")).upper() == "PASS"
             else "fail"
         )
 
@@ -119,11 +121,11 @@ def generate_html_report():
             total_for_type = sum(stats.values())
             pass_count = stats.get("PASS", 0)
             fail_count = stats.get("FAIL", 0)
-            pass_percentage = (
+            type_pass_percentage = (
                 round((pass_count / total_for_type) * 100, 2)
                 if total_for_type else 0
             )
-            fail_percentage = (
+            type_fail_percentage = (
                 round((fail_count / total_for_type) * 100, 2)
                 if total_for_type else 0
             )
@@ -132,8 +134,8 @@ def generate_html_report():
             <div class="type-row">
                 <div class="type-label">{check_name}</div>
                 <div class="type-bar">
-                    <span class="type-pass" style="width: {pass_percentage}%">{pass_count}</span>
-                    <span class="type-fail" style="width: {fail_percentage}%">{fail_count}</span>
+                    <span class="type-pass" style="width: {type_pass_percentage}%">{pass_count}</span>
+                    <span class="type-fail" style="width: {type_fail_percentage}%">{fail_count}</span>
                 </div>
             </div>
             """
