@@ -1,6 +1,21 @@
 from Src.query_executor import execute_query
 
 
+def normalize_snowflake_type(type_name):
+    value = str(type_name).upper().strip()
+
+    aliases = {
+        "TEXT": "VARCHAR",
+        "STRING": "VARCHAR",
+        "CHAR": "VARCHAR",
+        "CHARACTER": "VARCHAR",
+        "NCHAR": "VARCHAR",
+        "NVARCHAR": "VARCHAR",
+    }
+
+    return aliases.get(value, value)
+
+
 def check_null(connection, table_name, field_name):
 
     query = f"""
@@ -69,8 +84,11 @@ def check_datatype(connection, table_name, field_name, expected_type):
 
     actual_type = result[0][0]
 
+    normalized_actual = normalize_snowflake_type(actual_type)
+    normalized_expected = normalize_snowflake_type(expected_type)
+
     return (
-        actual_type.upper() == expected_type.upper(),
+        normalized_actual == normalized_expected,
         actual_type
     )
 
